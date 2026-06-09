@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>艾宾浩斯遗忘曲线 - 复习提醒</title>
+<style>
+:root {
+  --bg: #faf9f6;
+  --card-bg: #ffffff;
+  --text: #2d2d2d;
+  --text-secondary: #6b6b6b;
+  --border: #e8e5df;
+  --primary: #4a7c59;
+  --primary-light: #e8f0ea;
+  --danger: #c75b4a;
+  --danger-light: #fce8e5;
+  --warning: #d4a54a;
+  --warning-light: #fdf3e0;
+  --success: #5b8c5a;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow);
+}
+
+.header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header h1 .icon { font-size: 26px; }
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Buttons */
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font);
+  transition: all 0.15s;
+  background: var(--card-bg);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn:hover { background: #f5f4f1; border-color: #d0cdc6; }
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.btn-primary:hover { background: #3d6a4a; border-color: #3d6a4a; }
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.btn-danger:hover { background: #b04d3d; border-color: #b04d3d; }
+
+.btn-success {
+  background: var(--success);
+  color: #fff;
+  border-color: var(--success);
+}
+
+.btn-success:hover { background: #4a7a49; border-color: #4a7a49; }
+
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-lg { padding: 12px 24px; font-size: 16px; }
+
+.btn-icon {
+  padding: 6px 10px;
+  min-width: auto;
+}
+
+/* Main layout */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Stats cards */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  box-shadow: var(--shadow);
+}
+
+.stat-card .stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.stat-card .stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.stat-card.overdue .stat-number { color: var(--danger); }
+.stat-card.today .stat-number { color: var(--primary); }
+.stat-card.upcoming .stat-number { color: var(--warning); }
+.stat-card.completed .stat-number { color: var(--success); }
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font);
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.tab:hover { color: var(--text); background: #f5f4f1; }
+.tab.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Cards */
+.item-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow);
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.item-card:hover { box-shadow: var(--shadow-md); }
+
+.item-card.overdue-card {
+  border-left: 4px solid var(--danger);
+}
+
+.item-card.today-card {
+  border-left: 4px solid var(--primary);
+}
+
+.item-info { flex: 1; min-width: 0; }
+
+.item-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  word-break: break-all;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.item-name:hover {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.item-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.item-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-overdue { background: var(--danger-light); color: var(--danger); }
+.badge-today { background: var(--primary-light); color: var(--primary); }
+.badge-upcoming { background: var(--warning-light); color: var(--warning); }
+.badge-done { background: #e8f0ea; color: var(--success); }
+
+.item-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Add form */
+.form-card {
+  background: var(--card-bg);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.form-card h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.form-input {
+  flex: 1;
+  min-width: 180px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: var(--font);
+  background: var(--bg);
+  transition: border-color 0.15s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-secondary);
+}
+
+.empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-state p {
+  font-size: 15px;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 20px;
+  box-shadow: var(--shadow-md);
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideIn 0.2s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 360px;
+}
+
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--danger); }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  width: 100%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  padding: 20px 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 { font-size: 18px; }
+
+.modal-body { padding: 20px; }
+
+.modal-body textarea {
+  width: 100%;
+  height: 200px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: monospace;
+  background: var(--bg);
+  resize: vertical;
+}
+
+/* Calendar */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.calendar-day-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 8px 0;
+}
+
+.calendar-day {
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  min-height: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+
+.calendar-day:hover { background: #f5f4f1; }
+
+.calendar-day.other-month { color: #ccc; }
+
+.calendar-day.has-review {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  font-weight: 600;
+}
+
+.calendar-day.today {
+  border-color: var(--primary);
+  font-weight: 700;
+}
+
+.calendar-day.selected {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.calendar-day.selected .dot {
+  background: #fff;
+}
+
+.calendar-day .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin-top: 2px;
+}
+
+/* Date detail panel */
+.date-detail {
+  margin-top: 16px;
+  border-top: 2px solid var(--primary);
+  padding-top: 12px;
+}
+
+.date-detail h4 {
+  font-size: 15px;
+  margin-bottom: 8px;
+  color: var(--primary);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .header { padding: 12px 16px; }
+  .header h1 { font-size: 17px; }
+  .container { padding: 16px 10px; }
+  .item-card { flex-direction: column; align-items: flex-start; }
+  .item-actions { width: 100%; justify-content: flex-end; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .form-row { flex-direction: column; }
+  .header-actions .btn span { display: none; }
+}
+
+/* Tooltip area */
+.review-intervals-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.review-intervals-info span {
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span class="icon">🧠</span>艾宾浩斯复习提醒</h1>
+  <div class="header-actions">
+    <button class="btn btn-sm" onclick="showExportModal()" title="导出/导入数据">📦 <span>数据</span></button>
+    <button class="btn btn-sm" onclick="showHelpModal()" title="使用说明">❓ <span>帮助</span></button>
+  </div>
+</div>
+
+<div class="container" id="app">
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card overdue">
+      <div class="stat-number" id="stat-overdue">0</div>
+      <div class="stat-label">⚠️ 已逾期</div>
+    </div>
+    <div class="stat-card today">
+      <div class="stat-number" id="stat-today">0</div>
+      <div class="stat-label">📋 今日待复习</div>
+    </div>
+    <div class="stat-card completed">
+      <div class="stat-number" id="stat-done-today">0</div>
+      <div class="stat-label">✅ 今日已完成</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="stat-new-today" style="color:#6b8f71;">0</div>
+      <div class="stat-label">🆕 今日新增</div>
+    </div>
+  </div>
+
+  <!-- Add form -->
+  <div class="form-card" id="add-form">
+    <h3>✏️ 添加背诵内容</h3>
+    <div class="form-row">
+      <input class="form-input" type="text" id="input-name" placeholder="背诵内容名称" autocomplete="off">
+      <input class="form-input" type="text" id="input-desc" placeholder="备注（可选）" autocomplete="off">
+      <input class="form-input" type="date" id="input-date" style="max-width:150px;" title="学习/背诵的日期">
+      <button class="btn btn-primary" onclick="addItem()">➕ 添加</button>
+    </div>
+    <div class="review-intervals-info">
+      复习节点：<span>1天后</span><span>2天后</span><span>4天后</span><span>7天后</span><span>15天后</span><span>1个月后</span> ｜ 可选择过去日期补录已背诵内容
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('today')" id="tab-today">📋 今日复习</button>
+    <button class="tab" onclick="switchTab('calendar')" id="tab-calendar">🗓️ 日历</button>
+  </div>
+
+  <!-- Content area -->
+  <div id="content"></div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ============ 数据层 ============
+const STORAGE_KEY = 'ebbinghaus_data';
+
+const INTERVALS = [
+  { round: 1, label: '1天后', ms: 1 * 24 * 60 * 60 * 1000 },
+  { round: 2, label: '2天后', ms: 2 * 24 * 60 * 60 * 1000 },
+  { round: 3, label: '4天后', ms: 4 * 24 * 60 * 60 * 1000 },
+  { round: 4, label: '7天后', ms: 7 * 24 * 60 * 60 * 1000 },
+  { round: 5, label: '15天后', ms: 15 * 24 * 60 * 60 * 1000 },
+  { round: 6, label: '1个月后', ms: 30 * 24 * 60 * 60 * 1000 },
+];
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : { items: [] };
+  } catch { return { items: [] }; }
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function calculateNextReviewDate(createdAt, round) {
+  if (round > INTERVALS.length) return null; // all done
+  const interval = INTERVALS[round - 1];
+  return new Date(new Date(createdAt).getTime() + interval.ms).toISOString();
+}
+
+function getItemStatus(item) {
+  if (item.currentRound > INTERVALS.length) return 'completed';
+  const now = new Date();
+  const reviewDate = new Date(item.nextReviewDate);
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const reviewDayStart = new Date(reviewDate.getFullYear(), reviewDate.getMonth(), reviewDate.getDate());
+
+  if (reviewDate <= now) {
+    if (reviewDayStart < todayStart) return 'overdue';
+    return 'today';
+  }
+  return 'upcoming';
+}
+
+// ============ 渲染 ============
+let currentTab = 'today';
+let selectedDate = null; // currently selected date in calendar view
+
+function formatDate(isoStr) {
+  if (!isoStr) return '-';
+  const d = new Date(isoStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((target - today) / (24 * 60 * 60 * 1000));
+
+  const time = d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  const date = `${d.getMonth() + 1}/${d.getDate()}`;
+
+  if (diffDays < -1) return `${date} ${time} (${Math.abs(diffDays)}天前)`;
+  if (diffDays === -1) return `昨天 ${time}`;
+  if (diffDays === 0) return `今天 ${time}`;
+  if (diffDays === 1) return `明天 ${time}`;
+  if (diffDays <= 7) return `${diffDays}天后 ${date} ${time}`;
+  return `${date} ${time}`;
+}
+
+function formatDateShort(isoStr) {
+  if (!isoStr) return '-';
+  const d = new Date(isoStr);
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
+function renderStats() {
+  const data = loadData();
+  let overdue = 0, today = 0, doneToday = 0, newToday = 0;
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  data.items.forEach(item => {
+    const status = getItemStatus(item);
+    if (status === 'overdue') overdue++;
+    else if (status === 'today') today++;
+
+    // Count items added today
+    const created = new Date(item.createdAt);
+    if (created >= todayStart) newToday++;
+
+    // Count reviews completed today
+    if (item.reviewHistory) {
+      item.reviewHistory.forEach(r => {
+        if (r.completedAt && new Date(r.completedAt) >= todayStart) {
+          doneToday++;
+        }
+      });
+    }
+  });
+
+  document.getElementById('stat-overdue').textContent = overdue;
+  document.getElementById('stat-today').textContent = today;
+  document.getElementById('stat-done-today').textContent = doneToday;
+  document.getElementById('stat-new-today').textContent = newToday;
+}
+
+function renderItemCard(item) {
+  const status = getItemStatus(item);
+  const interval = item.currentRound <= INTERVALS.length ? INTERVALS[item.currentRound - 1] : null;
+  const roundLabel = interval ? `第${interval.round}轮 · ${interval.label}` : '全部完成';
+  const statusClass = status === 'overdue' ? 'overdue-card' : status === 'today' ? 'today-card' : '';
+
+  let badgeHtml = '';
+  if (status === 'overdue') badgeHtml = '<span class="badge badge-overdue">已逾期</span>';
+  else if (status === 'today') badgeHtml = '<span class="badge badge-today">今日复习</span>';
+  else if (status === 'upcoming') badgeHtml = '<span class="badge badge-upcoming">即将到来</span>';
+  else badgeHtml = '<span class="badge badge-done">✓ 已完成</span>';
+
+  let actionsHtml = '';
+  if (status === 'overdue' || status === 'today') {
+    actionsHtml = `<button class="btn btn-success btn-sm" onclick="completeReview('${item.id}')">✅ 完成复习</button>`;
+  } else if (status === 'upcoming') {
+    actionsHtml = `<span style="font-size:12px;color:var(--text-secondary)">⏰ ${formatDate(item.nextReviewDate)}</span>`;
+  }
+  actionsHtml += `<button class="btn btn-sm btn-icon" onclick="deleteItem('${item.id}')" title="删除">🗑️</button>`;
+
+  return `
+    <div class="item-card ${statusClass}">
+      <div class="item-info">
+        <div class="item-name" onclick="showItemDetail('${item.id}')" title="点击查看知识详情">${escapeHtml(item.name)}${item.content ? ' 📄' : ''}</div>
+        ${item.description ? `<div class="item-desc">${escapeHtml(item.description)}</div>` : ''}
+        <div class="item-meta">
+          <span>🔄 ${roundLabel}</span>
+          <span>📅 下次复习：${formatDate(item.nextReviewDate)}</span>
+          <span>📝 创建于 ${formatDateShort(item.createdAt)}</span>
+          ${badgeHtml}
+        </div>
+      </div>
+      <div class="item-actions">${actionsHtml}</div>
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderContent() {
+  const data = loadData();
+  const content = document.getElementById('content');
+
+  if (currentTab === 'calendar') {
+    renderCalendar();
+    return;
+  }
+
+  // today tab - split into review items and new items
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const reviewItems = data.items.filter(item => {
+    const s = getItemStatus(item);
+    return s === 'today' || s === 'overdue';
+  });
+  reviewItems.sort((a, b) => {
+    const sa = getItemStatus(a), sb = getItemStatus(b);
+    if (sa === 'overdue' && sb === 'today') return -1;
+    if (sa === 'today' && sb === 'overdue') return 1;
+    return new Date(a.nextReviewDate) - new Date(b.nextReviewDate);
+  });
+
+  const newTodayItems = data.items.filter(item => {
+    return new Date(item.createdAt) >= todayStart;
+  }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  if (reviewItems.length === 0 && newTodayItems.length === 0) {
+    content.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🎉</div>
+        <p>今天没有需要复习的内容，也没有新增内容</p>
+      </div>`;
+    return;
+  }
+
+  let html = '';
+
+  // Review section
+  if (reviewItems.length > 0) {
+    html += `<div style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text-secondary);">📋 待复习（${reviewItems.length}项）</div>`;
+    html += reviewItems.map(renderItemCard).join('');
+  }
+
+  // New today section
+  if (newTodayItems.length > 0) {
+    html += `<div style="font-size:14px;font-weight:600;margin:16px 0 8px;color:var(--text-secondary);">🆕 今日新增（${newTodayItems.length}项）</div>`;
+    html += newTodayItems.map(item => {
+      // Render with a "new" style instead of review style
+      const interval = item.currentRound <= INTERVALS.length ? INTERVALS[item.currentRound - 1] : null;
+      const roundLabel = interval ? `第${interval.round}轮 · ${interval.label}` : '全部完成';
+      return `
+        <div class="item-card">
+          <div class="item-info">
+            <div class="item-name" onclick="showItemDetail('${item.id}')" title="点击查看知识详情">${escapeHtml(item.name)}${item.content ? ' 📄' : ''}</div>
+            ${item.description ? `<div class="item-desc">${escapeHtml(item.description)}</div>` : ''}
+            <div class="item-meta">
+              <span>🔄 ${roundLabel}</span>
+              <span>📅 首次复习：${formatDate(item.nextReviewDate)}</span>
+              <span>🆕 今天添加</span>
+            </div>
+          </div>
+          <div class="item-actions">
+            <button class="btn btn-sm btn-icon" onclick="deleteItem('${item.id}')" title="删除">🗑️</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  content.innerHTML = html;
+}
+
+// Build a date key string: YYYY-M-D
+function dateKey(year, month, day) {
+  return `${year}-${month}-${day}`;
+}
+
+// Get items whose next review falls on a given date
+function getItemsForDate(year, month, day) {
+  const data = loadData();
+  return data.items.filter(item => {
+    if (getItemStatus(item) === 'completed') return false;
+    const d = new Date(item.nextReviewDate);
+    return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+  });
+}
+
+// ============ 日历视图 ============
+function renderCalendar() {
+  const data = loadData();
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  // Collect review dates
+  const reviewDates = new Map();
+  data.items.forEach(item => {
+    if (getItemStatus(item) === 'completed') return;
+    const d = new Date(item.nextReviewDate);
+    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+    reviewDates.set(key, (reviewDates.get(key) || 0) + 1);
+  });
+
+  let html = '<div class="calendar-grid">';
+  const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+  dayHeaders.forEach(d => { html += `<div class="calendar-day-header">${d}</div>`; });
+
+  // Previous month days
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const day = daysInPrevMonth - i;
+    html += `<div class="calendar-day other-month">${day}</div>`;
+  }
+
+  // Current month days
+  const today = now.getDate();
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = dateKey(year, month, day);
+    const count = reviewDates.get(key) || 0;
+    let cls = 'calendar-day';
+    if (day === today) cls += ' today';
+    if (count > 0) cls += ' has-review';
+    if (selectedDate && selectedDate.year === year && selectedDate.month === month && selectedDate.day === day) {
+      cls += ' selected';
+    }
+    html += `<div class="${cls}" onclick="selectDate(${year}, ${month}, ${day})" title="${count > 0 ? count + '项待复习' : '点击查看详情'}">${day}${count > 0 ? `<div class="dot"></div>` : ''}</div>`;
+  }
+
+  // Remaining days to fill the last week
+  const totalShown = firstDay + daysInMonth;
+  const remaining = totalShown % 7 === 0 ? 0 : 7 - (totalShown % 7);
+  for (let day = 1; day <= remaining; day++) {
+    html += `<div class="calendar-day other-month">${day}</div>`;
+  }
+
+  html += '</div>';
+
+  // Legend
+  html += `
+    <div style="margin-top:16px;display:flex;gap:16px;font-size:13px;color:var(--text-secondary);align-items:center;">
+      <span>🟢 有复习计划</span>
+      <span>📅 ${year}年${month + 1}月</span>
+      <span style="margin-left:auto;cursor:pointer;color:var(--primary);" onclick="selectedDate=null;renderCalendar();">🔄 清除选中</span>
+    </div>`;
+
+  // Selected date detail panel
+  if (selectedDate) {
+    const items = getItemsForDate(selectedDate.year, selectedDate.month, selectedDate.day);
+    html += `<div class="date-detail">`;
+    html += `<h4>📋 ${selectedDate.year}年${selectedDate.month + 1}月${selectedDate.day}日 待复习内容</h4>`;
+
+    if (items.length === 0) {
+      html += `<p style="font-size:13px;color:var(--text-secondary);">这一天没有需要复习的内容</p>`;
+    } else {
+      items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      html += items.map(renderItemCard).join('');
+    }
+    html += `</div>`;
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function selectDate(year, month, day) {
+  // Toggle: if clicking the already-selected date, deselect
+  if (selectedDate && selectedDate.year === year && selectedDate.month === month && selectedDate.day === day) {
+    selectedDate = null;
+  } else {
+    selectedDate = { year, month, day };
+  }
+  renderCalendar();
+}
+
+// ============ 操作 ============
+function addItem() {
+  const nameInput = document.getElementById('input-name');
+  const descInput = document.getElementById('input-desc');
+  const dateInput = document.getElementById('input-date');
+  const name = nameInput.value.trim();
+
+  if (!name) {
+    showToast('请输入背诵内容名称', 'error');
+    nameInput.focus();
+    return;
+  }
+
+  // Use selected date (at noon to avoid timezone issues), default today
+  let learnedDate;
+  if (dateInput.value) {
+    learnedDate = new Date(dateInput.value + 'T12:00:00');
+  } else {
+    learnedDate = new Date();
+  }
+  const createdAt = learnedDate.toISOString();
+
+  const item = {
+    id: generateId(),
+    name: name,
+    description: descInput.value.trim(),
+    content: '',
+    createdAt: createdAt,
+    currentRound: 1,
+    nextReviewDate: calculateNextReviewDate(createdAt, 1),
+  };
+
+  const data = loadData();
+  data.items.push(item);
+  saveData(data);
+
+  nameInput.value = '';
+  descInput.value = '';
+  dateInput.value = '';
+  nameInput.focus();
+
+  showToast(`已添加「${name}」，首次复习：${formatDate(item.nextReviewDate)}`, 'success');
+  refresh();
+}
+
+function completeReview(id) {
+  const data = loadData();
+  const item = data.items.find(i => i.id === id);
+  if (!item) return;
+
+  const now = new Date().toISOString();
+  // Record completed review
+  if (!item.reviewHistory) item.reviewHistory = [];
+  item.reviewHistory.push({
+    round: item.currentRound,
+    scheduledDate: item.nextReviewDate,
+    completedAt: now,
+  });
+
+  item.currentRound++;
+  item.nextReviewDate = calculateNextReviewDate(item.createdAt, item.currentRound);
+
+  let msg;
+  if (item.currentRound > INTERVALS.length) {
+    msg = `🎉「${item.name}」全部6轮复习已完成！`;
+  } else {
+    const nextInterval = INTERVALS[item.currentRound - 1];
+    msg = `「${item.name}」第${item.currentRound - 1}轮完成！下次复习：${formatDate(item.nextReviewDate)}（${nextInterval.label}）`;
+  }
+
+  saveData(data);
+  showToast(msg, 'success');
+  refresh();
+}
+
+function deleteItem(id) {
+  const data = loadData();
+  const item = data.items.find(i => i.id === id);
+  if (!item) return;
+  if (!confirm(`确定要删除「${item.name}」吗？此操作不可恢复。`)) return;
+
+  data.items = data.items.filter(i => i.id !== id);
+  saveData(data);
+  showToast(`已删除「${item.name}」`, 'error');
+  refresh();
+}
+
+function showItemDetail(id) {
+  const data = loadData();
+  const item = data.items.find(i => i.id === id);
+  if (!item) return;
+
+  const interval = item.currentRound <= INTERVALS.length ? INTERVALS[item.currentRound - 1] : null;
+  const roundLabel = interval ? `第${interval.round}轮 · ${interval.label}` : '全部完成';
+  const status = getItemStatus(item);
+  const statusLabels = { overdue: '已逾期', today: '今日复习', upcoming: '即将到来', completed: '已完成' };
+  const statusLabel = statusLabels[status] || '';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'detail-modal';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header">
+        <h3>📄 ${escapeHtml(item.name)}</h3>
+        <button class="btn btn-sm" onclick="closeDetailModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:13px;color:var(--text-secondary);">
+          <span>🔄 ${roundLabel}</span>
+          <span>📅 下次复习：${formatDate(item.nextReviewDate)}</span>
+          <span>📝 学习日期：${formatDateShort(item.createdAt)}</span>
+          <span>📌 ${statusLabel}</span>
+          ${item.description ? `<span>💬 ${escapeHtml(item.description)}</span>` : ''}
+        </div>
+        <div style="margin-bottom:8px;font-weight:600;font-size:14px;">📖 知识内容</div>
+        <textarea id="detail-content" style="width:100%;height:220px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);resize:vertical;line-height:1.8;" placeholder="在这里粘贴或输入具体的背诵知识内容...">${escapeHtml(item.content || '')}</textarea>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="saveItemContent('${item.id}')">💾 保存</button>
+          ${status === 'overdue' || status === 'today' ? `<button class="btn btn-success" onclick="completeReview('${item.id}');closeDetailModal();">✅ 完成复习</button>` : ''}
+          <button class="btn btn-sm" onclick="closeDetailModal()" style="margin-left:auto;">关闭</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeDetailModal(); });
+}
+
+function closeDetailModal() {
+  const modal = document.getElementById('detail-modal');
+  if (modal) modal.remove();
+}
+
+function saveItemContent(id) {
+  const data = loadData();
+  const item = data.items.find(i => i.id === id);
+  if (!item) return;
+
+  const textarea = document.getElementById('detail-content');
+  item.content = textarea.value;
+  saveData(data);
+  showToast(`「${item.name}」知识内容已保存`, 'success');
+  closeDetailModal();
+  refresh();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  renderContent();
+}
+
+function refresh() {
+  renderStats();
+  renderContent();
+}
+
+// ============ 导出/导入 ============
+function showExportModal() {
+  const data = loadData();
+  const json = JSON.stringify(data, null, 2);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'export-modal';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h3>📦 数据管理</h3>
+        <button class="btn btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+          当前共 <strong>${data.items.length}</strong> 条记录。你可以导出数据备份，或导入之前备份的数据。
+        </p>
+        <textarea readonly id="export-json">${json}</textarea>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="copyExport()">📋 复制 JSON</button>
+          <button class="btn btn-sm" onclick="downloadExport()">💾 下载 JSON 文件</button>
+        </div>
+        <hr style="margin:20px 0;border:none;border-top:1px solid var(--border);">
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">导入数据（会合并到现有数据中）：</p>
+        <input type="file" id="import-file" accept=".json" style="display:none;" onchange="handleImport(event)">
+        <button class="btn btn-sm" onclick="document.getElementById('import-file').click()">📂 选择 JSON 文件导入</button>
+        <p style="margin-top:8px;font-size:11px;color:var(--text-secondary);">
+          提示：CLI 工具的数据文件在 <code>~/.ebbinghaus/data.json</code>，可互相导入。
+        </p>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+}
+
+function closeModal() {
+  const modal = document.getElementById('export-modal');
+  if (modal) modal.remove();
+}
+
+function copyExport() {
+  const textarea = document.getElementById('export-json');
+  textarea.select();
+  document.execCommand('copy');
+  showToast('已复制到剪贴板', 'success');
+}
+
+function downloadExport() {
+  const data = loadData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ebbinghaus-backup-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('下载完成', 'success');
+}
+
+function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported.items || !Array.isArray(imported.items)) {
+        throw new Error('无效的数据格式');
+      }
+
+      const data = loadData();
+      const existingIds = new Set(data.items.map(i => i.id));
+      let addedCount = 0;
+      imported.items.forEach(item => {
+        if (!existingIds.has(item.id)) {
+          data.items.push(item);
+          addedCount++;
+        }
+      });
+
+      saveData(data);
+      showToast(`导入完成：新增 ${addedCount} 条（跳过 ${imported.items.length - addedCount} 条重复）`, 'success');
+      closeModal();
+      refresh();
+    } catch (err) {
+      showToast('导入失败：' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ============ 帮助弹窗 ============
+function showHelpModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'help-modal';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h3>❓ 使用说明</h3>
+        <button class="btn btn-sm" onclick="closeHelpModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <h4>🧠 什么是艾宾浩斯遗忘曲线？</h4>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+          德国心理学家赫尔曼·艾宾浩斯发现，人类记忆的遗忘是有规律的——新学的知识在最初几天遗忘最快，之后逐渐减慢。通过在特定的遗忘节点进行复习，可以大幅提高长期记忆效果。
+        </p>
+        <h4>📋 复习节点</h4>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:12px;">
+          <tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:6px;">轮次</th><th style="text-align:left;padding:6px;">时间间隔</th><th style="text-align:left;padding:6px;">说明</th></tr>
+          ${INTERVALS.map((inv, i) => `<tr style="border-bottom:1px solid var(--border);"><td style="padding:6px;">第${i+1}轮</td><td style="padding:6px;">${inv.label}</td><td style="padding:6px;color:var(--text-secondary);">间隔日复习</td></tr>`).join('')}
+        </table>
+        <h4>💡 使用技巧</h4>
+        <ul style="font-size:13px;color:var(--text-secondary);padding-left:20px;">
+          <li>每次背诵新内容后，立即添加到本工具</li>
+          <li>按日期提醒复习，打开本页面即可看到今日待复习内容</li>
+          <li>配合 CLI 工具 <code>ebbinghaus.sh</code> 可获得系统通知提醒</li>
+          <li>定期导出数据备份，防止浏览器数据丢失</li>
+        </ul>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeHelpModal(); });
+}
+
+function closeHelpModal() {
+  const modal = document.getElementById('help-modal');
+  if (modal) modal.remove();
+}
+
+// ============ Toast ============
+function showToast(message, type) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    toast.style.transition = 'all 0.2s';
+    setTimeout(() => toast.remove(), 200);
+  }, 3000);
+}
+
+// ============ 初始化 ============
+function init() {
+  // Set default date to today
+  document.getElementById('input-date').value = new Date().toISOString().split('T')[0];
+
+  // Auto-refresh every 30 seconds
+  renderStats();
+  renderContent();
+  setInterval(refresh, 30000);
+
+  // Handle Enter key to add item
+  document.getElementById('input-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addItem();
+  });
+  document.getElementById('input-desc').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addItem();
+  });
+}
+
+init();
+</script>
+
+</body>
+</html>
