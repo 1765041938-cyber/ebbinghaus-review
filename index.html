@@ -207,10 +207,6 @@ body {
 
 .item-card:hover { box-shadow: var(--shadow-md); }
 
-.item-card.overdue-card {
-  border-left: 4px solid var(--danger);
-}
-
 .item-card.today-card {
   border-left: 4px solid var(--primary);
 }
@@ -483,6 +479,85 @@ body {
   color: var(--primary);
 }
 
+/* Casual mode */
+.casual-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.casual-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: all 0.15s;
+}
+
+.casual-card:hover { box-shadow: var(--shadow-md); }
+
+.casual-card-header {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+}
+
+.casual-card-header:hover { background: #fafaf7; }
+
+.casual-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.casual-card-title .no-content { color: var(--text-secondary); font-weight: 400; font-size: 12px; }
+
+.casual-card-arrow {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.casual-card.open .casual-card-arrow { transform: rotate(180deg); }
+
+.casual-card-body {
+  display: none;
+  padding: 0 18px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.casual-card.open .casual-card-body { display: block; }
+
+.casual-card-content {
+  margin-top: 12px;
+  padding: 14px;
+  background: #fbfbf8;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  line-height: 2;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.casual-card-content.empty {
+  color: var(--text-secondary);
+  font-style: italic;
+  text-align: center;
+  padding: 24px;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .header { padding: 12px 16px; }
@@ -518,6 +593,7 @@ body {
 <div class="header">
   <h1><span class="icon">🧠</span>艾宾浩斯复习提醒</h1>
   <div class="header-actions">
+    <button class="btn btn-sm" id="btn-sync" onclick="showSyncModal()" title="云同步">☁️ <span>同步</span></button>
     <button class="btn btn-sm" onclick="showExportModal()" title="导出/导入数据">📦 <span>数据</span></button>
     <button class="btn btn-sm" onclick="showHelpModal()" title="使用说明">❓ <span>帮助</span></button>
   </div>
@@ -525,15 +601,10 @@ body {
 
 <div class="container" id="app">
   <!-- Stats -->
+  <div id="review-alert" style="display:none;background:#fef9e7;border:1px solid #f9e79f;border-radius:var(--radius-sm);padding:10px 16px;margin-bottom:12px;font-size:13px;color:#9a7d0a;text-align:center;">
+    ⏰ 有内容到了该复习的时间，记得看看哦
+  </div>
   <div class="stats-row">
-    <div class="stat-card overdue">
-      <div class="stat-number" id="stat-overdue">0</div>
-      <div class="stat-label">⚠️ 已逾期</div>
-    </div>
-    <div class="stat-card today">
-      <div class="stat-number" id="stat-today">0</div>
-      <div class="stat-label">📋 今日待复习</div>
-    </div>
     <div class="stat-card completed">
       <div class="stat-number" id="stat-done-today">0</div>
       <div class="stat-label">✅ 今日已完成</div>
@@ -560,7 +631,8 @@ body {
 
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('today')" id="tab-today">📋 今日复习</button>
+    <button class="tab active" onclick="switchTab('today')" id="tab-today">📋 复习</button>
+    <button class="tab" onclick="switchTab('casual')" id="tab-casual">🎲 随手背</button>
     <button class="tab" onclick="switchTab('calendar')" id="tab-calendar">🗓️ 日历</button>
   </div>
 
@@ -608,14 +680,7 @@ function calculateNextReviewDate(createdAt, round) {
 function getItemStatus(item) {
   if (item.currentRound > INTERVALS.length) return 'completed';
   const now = new Date();
-  const reviewDate = new Date(item.nextReviewDate);
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const reviewDayStart = new Date(reviewDate.getFullYear(), reviewDate.getMonth(), reviewDate.getDate());
-
-  if (reviewDate <= now) {
-    if (reviewDayStart < todayStart) return 'overdue';
-    return 'today';
-  }
+  if (new Date(item.nextReviewDate) <= now) return 'today';
   return 'upcoming';
 }
 
@@ -650,14 +715,13 @@ function formatDateShort(isoStr) {
 
 function renderStats() {
   const data = loadData();
-  let overdue = 0, today = 0, doneToday = 0, newToday = 0;
+  let pending = 0, doneToday = 0, newToday = 0;
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   data.items.forEach(item => {
     const status = getItemStatus(item);
-    if (status === 'overdue') overdue++;
-    else if (status === 'today') today++;
+    if (status === 'today') pending++;
 
     // Count items added today
     const created = new Date(item.createdAt);
@@ -673,8 +737,14 @@ function renderStats() {
     }
   });
 
-  document.getElementById('stat-overdue').textContent = overdue;
-  document.getElementById('stat-today').textContent = today;
+  // Show/hide subtle alert if there are pending reviews
+  const alertEl = document.getElementById('review-alert');
+  if (pending > 0) {
+    alertEl.style.display = 'block';
+  } else {
+    alertEl.style.display = 'none';
+  }
+
   document.getElementById('stat-done-today').textContent = doneToday;
   document.getElementById('stat-new-today').textContent = newToday;
 }
@@ -683,16 +753,15 @@ function renderItemCard(item) {
   const status = getItemStatus(item);
   const interval = item.currentRound <= INTERVALS.length ? INTERVALS[item.currentRound - 1] : null;
   const roundLabel = interval ? `第${interval.round}轮 · ${interval.label}` : '全部完成';
-  const statusClass = status === 'overdue' ? 'overdue-card' : status === 'today' ? 'today-card' : '';
+  const statusClass = status === 'today' ? 'today-card' : '';
 
   let badgeHtml = '';
-  if (status === 'overdue') badgeHtml = '<span class="badge badge-overdue">已逾期</span>';
-  else if (status === 'today') badgeHtml = '<span class="badge badge-today">今日复习</span>';
+  if (status === 'today') badgeHtml = '<span class="badge badge-today">待复习</span>';
   else if (status === 'upcoming') badgeHtml = '<span class="badge badge-upcoming">即将到来</span>';
   else badgeHtml = '<span class="badge badge-done">✓ 已完成</span>';
 
   let actionsHtml = '';
-  if (status === 'overdue' || status === 'today') {
+  if (status === 'today') {
     actionsHtml = `<button class="btn btn-success btn-sm" onclick="completeReview('${item.id}')">✅ 完成复习</button>`;
   } else if (status === 'upcoming') {
     actionsHtml = `<span style="font-size:12px;color:var(--text-secondary)">⏰ ${formatDate(item.nextReviewDate)}</span>`;
@@ -722,6 +791,109 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function toggleCasualCard(id) {
+  const card = document.getElementById('casual-' + id);
+  card.classList.toggle('open');
+}
+
+function renderCasual() {
+  const data = loadData();
+  const content = document.getElementById('content');
+  const items = data.items;
+
+  if (items.length === 0) {
+    content.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <p>还没有添加任何背诵内容，在上方添加第一条吧</p>
+      </div>`;
+    return;
+  }
+
+  const dueCount = items.filter(item => getItemStatus(item) === 'today').length;
+
+  let html = `
+    <div class="casual-toolbar">
+      <button class="btn btn-primary" onclick="randomPick()">🎲 随机抽一个</button>
+      ${dueCount > 0 ? `<span style="font-size:12px;color:var(--primary);">优先从今日待复习中抽取（${dueCount}条待复习）</span>` : `<span style="font-size:12px;color:var(--text-secondary);">共 ${items.length} 条</span>`}
+    </div>`;
+
+  items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  items.forEach(item => {
+    const interval = item.currentRound <= INTERVALS.length ? INTERVALS[item.currentRound - 1] : null;
+    const roundLabel = interval ? `第${interval.round}轮` : '已完成';
+
+    html += `
+      <div class="casual-card" id="casual-${item.id}">
+        <div class="casual-card-header" onclick="toggleCasualCard('${item.id}')">
+          <div class="casual-card-title">
+            ${escapeHtml(item.name)}
+            ${!item.content ? '<span class="no-content">（暂无内容，点击添加）</span>' : ''}
+          </div>
+          <span style="font-size:12px;color:var(--text-secondary);flex-shrink:0;">${roundLabel}</span>
+          <span class="casual-card-arrow">▼</span>
+        </div>
+        <div class="casual-card-body">
+          ${item.description ? `<div style="font-size:13px;color:var(--text-secondary);margin-top:10px;">💬 ${escapeHtml(item.description)}</div>` : ''}
+          <textarea class="casual-card-content${!item.content ? ' empty' : ''}"
+            id="casual-content-${item.id}"
+            placeholder="在这里粘贴或输入具体的背诵知识内容..."
+            oninput="autoSaveCasualContent('${item.id}')"
+            onblur="autoSaveCasualContent('${item.id}')">${escapeHtml(item.content || '')}</textarea>
+        </div>
+      </div>`;
+  });
+
+  content.innerHTML = html;
+}
+
+let casualSaveTimer = null;
+function autoSaveCasualContent(id) {
+  clearTimeout(casualSaveTimer);
+  casualSaveTimer = setTimeout(() => {
+    const data = loadData();
+    const item = data.items.find(i => i.id === id);
+    if (!item) return;
+    const textarea = document.getElementById('casual-content-' + id);
+    if (!textarea) return;
+    item.content = textarea.value;
+    saveData(data);
+  }, 800); // debounce 800ms
+}
+
+function randomPick() {
+  const data = loadData();
+  if (data.items.length === 0) return;
+
+  // Collapse all cards first
+  document.querySelectorAll('.casual-card').forEach(c => c.classList.remove('open'));
+
+  // Prioritize items due for review today (nextReviewDate <= now, not completed)
+  const dueItems = data.items.filter(item => getItemStatus(item) === 'today');
+
+  // Pick from due items first, fall back to all items
+  const pool = dueItems.length > 0 ? dueItems : data.items;
+  const idx = Math.floor(Math.random() * pool.length);
+  const item = pool[idx];
+
+  // Expand the card
+  const card = document.getElementById('casual-' + item.id);
+  if (card) {
+    card.classList.add('open');
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Highlight briefly
+    card.style.boxShadow = '0 0 0 3px var(--primary)';
+    setTimeout(() => { card.style.boxShadow = ''; }, 1500);
+  }
+
+  // Brief indicator of source
+  if (dueItems.length > 0) {
+    showToast(`从今日待复习中抽取（${dueItems.length}条待复习）`, 'success');
+  }
+}
+
 function renderContent() {
   const data = loadData();
   const content = document.getElementById('content');
@@ -731,20 +903,19 @@ function renderContent() {
     return;
   }
 
+  if (currentTab === 'casual') {
+    renderCasual();
+    return;
+  }
+
   // today tab - split into review items and new items
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   const reviewItems = data.items.filter(item => {
-    const s = getItemStatus(item);
-    return s === 'today' || s === 'overdue';
+    return getItemStatus(item) === 'today';
   });
-  reviewItems.sort((a, b) => {
-    const sa = getItemStatus(a), sb = getItemStatus(b);
-    if (sa === 'overdue' && sb === 'today') return -1;
-    if (sa === 'today' && sb === 'overdue') return 1;
-    return new Date(a.nextReviewDate) - new Date(b.nextReviewDate);
-  });
+  reviewItems.sort((a, b) => new Date(a.nextReviewDate) - new Date(b.nextReviewDate));
 
   const newTodayItems = data.items.filter(item => {
     return new Date(item.createdAt) >= todayStart;
@@ -763,13 +934,13 @@ function renderContent() {
 
   // Review section
   if (reviewItems.length > 0) {
-    html += `<div style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text-secondary);">📋 待复习（${reviewItems.length}项）</div>`;
+    html += `<div style="font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text-secondary);">📋 可以复习一下这些</div>`;
     html += reviewItems.map(renderItemCard).join('');
   }
 
   // New today section
   if (newTodayItems.length > 0) {
-    html += `<div style="font-size:14px;font-weight:600;margin:16px 0 8px;color:var(--text-secondary);">🆕 今日新增（${newTodayItems.length}项）</div>`;
+    html += `<div style="font-size:14px;font-weight:600;margin:16px 0 8px;color:var(--text-secondary);">🆕 今日新增</div>`;
     html += newTodayItems.map(item => {
       // Render with a "new" style instead of review style
       const interval = item.currentRound <= INTERVALS.length ? INTERVALS[item.currentRound - 1] : null;
@@ -800,14 +971,41 @@ function dateKey(year, month, day) {
   return `${year}-${month}-${day}`;
 }
 
-// Get items whose next review falls on a given date
+// Get items for a calendar date, split by type
 function getItemsForDate(year, month, day) {
   const data = loadData();
-  return data.items.filter(item => {
-    if (getItemStatus(item) === 'completed') return false;
-    const d = new Date(item.nextReviewDate);
-    return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+  const targetDate = new Date(year, month, day);
+
+  const pending = [];  // items whose nextReviewDate falls on this date
+  const reviewed = []; // items that were reviewed (completedAt) on this date
+
+  data.items.forEach(item => {
+    // Pending reviews scheduled for this date
+    if (item.currentRound <= INTERVALS.length) {
+      const d = new Date(item.nextReviewDate);
+      if (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) {
+        pending.push(item);
+      }
+    }
+
+    // Reviews completed on this date
+    if (item.reviewHistory) {
+      const matched = item.reviewHistory.some(r => {
+        if (!r.completedAt) return false;
+        const d = new Date(r.completedAt);
+        return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+      });
+      if (matched && !pending.includes(item)) {
+        reviewed.push(item);
+      }
+    }
   });
+
+  // Sort: pending first, then reviewed; newest first within each
+  pending.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  reviewed.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  return { pending, reviewed };
 }
 
 // ============ 日历视图 ============
@@ -821,13 +1019,25 @@ function renderCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-  // Collect review dates
-  const reviewDates = new Map();
+  // Collect dates that have either pending reviews or completed reviews (for dots)
+  const dateMarks = new Map();
   data.items.forEach(item => {
-    if (getItemStatus(item) === 'completed') return;
-    const d = new Date(item.nextReviewDate);
-    const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-    reviewDates.set(key, (reviewDates.get(key) || 0) + 1);
+    // Pending review dates
+    if (item.currentRound <= INTERVALS.length) {
+      const d = new Date(item.nextReviewDate);
+      const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+      dateMarks.set(key, (dateMarks.get(key) || 0) + 1);
+    }
+    // Completed review dates
+    if (item.reviewHistory) {
+      item.reviewHistory.forEach(r => {
+        if (r.completedAt) {
+          const d = new Date(r.completedAt);
+          const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+          if (!dateMarks.has(key)) dateMarks.set(key, 1);
+        }
+      });
+    }
   });
 
   let html = '<div class="calendar-grid">';
@@ -844,14 +1054,14 @@ function renderCalendar() {
   const today = now.getDate();
   for (let day = 1; day <= daysInMonth; day++) {
     const key = dateKey(year, month, day);
-    const count = reviewDates.get(key) || 0;
+    const count = dateMarks.get(key) || 0;
     let cls = 'calendar-day';
     if (day === today) cls += ' today';
     if (count > 0) cls += ' has-review';
     if (selectedDate && selectedDate.year === year && selectedDate.month === month && selectedDate.day === day) {
       cls += ' selected';
     }
-    html += `<div class="${cls}" onclick="selectDate(${year}, ${month}, ${day})" title="${count > 0 ? count + '项待复习' : '点击查看详情'}">${day}${count > 0 ? `<div class="dot"></div>` : ''}</div>`;
+    html += `<div class="${cls}" onclick="selectDate(${year}, ${month}, ${day})" title="点击查看详情">${day}${count > 0 ? `<div class="dot"></div>` : ''}</div>`;
   }
 
   // Remaining days to fill the last week
@@ -866,22 +1076,63 @@ function renderCalendar() {
   // Legend
   html += `
     <div style="margin-top:16px;display:flex;gap:16px;font-size:13px;color:var(--text-secondary);align-items:center;">
-      <span>🟢 有复习计划</span>
+      <span>🟢 有待复习/已复习</span>
       <span>📅 ${year}年${month + 1}月</span>
       <span style="margin-left:auto;cursor:pointer;color:var(--primary);" onclick="selectedDate=null;renderCalendar();">🔄 清除选中</span>
     </div>`;
 
   // Selected date detail panel
   if (selectedDate) {
-    const items = getItemsForDate(selectedDate.year, selectedDate.month, selectedDate.day);
-    html += `<div class="date-detail">`;
-    html += `<h4>📋 ${selectedDate.year}年${selectedDate.month + 1}月${selectedDate.day}日 待复习内容</h4>`;
+    const { pending, reviewed } = getItemsForDate(selectedDate.year, selectedDate.month, selectedDate.day);
+    const selDate = new Date(selectedDate.year, selectedDate.month, selectedDate.day);
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const isPast = selDate < todayDate;
+    const isToday = selDate.getTime() === todayDate.getTime();
+    const titleDate = `${selectedDate.year}年${selectedDate.month + 1}月${selectedDate.day}日`;
 
-    if (items.length === 0) {
-      html += `<p style="font-size:13px;color:var(--text-secondary);">这一天没有需要复习的内容</p>`;
+    html += `<div class="date-detail">`;
+
+    if (pending.length === 0 && reviewed.length === 0) {
+      html += `<h4>📅 ${titleDate}</h4>`;
+      html += `<p style="font-size:13px;color:var(--text-secondary);">这一天没有复习相关内容</p>`;
     } else {
-      items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      html += items.map(renderItemCard).join('');
+      if (isPast) {
+        html += `<h4>✅ ${titleDate} 已复习内容</h4>`;
+      } else if (isToday) {
+        html += `<h4>📋 ${titleDate}（今天）</h4>`;
+      } else {
+        html += `<h4>📅 ${titleDate} 待复习内容</h4>`;
+      }
+
+      // Pending section (for today and future)
+      if (pending.length > 0) {
+        html += `<div style="font-size:13px;font-weight:600;margin-bottom:6px;color:var(--primary);">📋 待复习（${pending.length}项）</div>`;
+        html += pending.map(renderItemCard).join('');
+      }
+
+      // Reviewed section (for today and past)
+      if (reviewed.length > 0) {
+        html += `<div style="font-size:13px;font-weight:600;margin:8px 0 6px;color:var(--success);">✅ 已复习（${reviewed.length}项）</div>`;
+        html += reviewed.map(item => {
+          const interval = item.currentRound <= INTERVALS.length ? INTERVALS[item.currentRound - 1] : null;
+          const roundLabel = interval ? `第${interval.round}轮 · ${interval.label}` : '全部完成';
+          return `
+            <div class="item-card">
+              <div class="item-info">
+                <div class="item-name" onclick="showItemDetail('${item.id}')" title="点击查看知识详情">${escapeHtml(item.name)}${item.content ? ' 📄' : ''}</div>
+                ${item.description ? `<div class="item-desc">${escapeHtml(item.description)}</div>` : ''}
+                <div class="item-meta">
+                  <span>🔄 ${roundLabel}</span>
+                  <span>📅 下次复习：${formatDate(item.nextReviewDate)}</span>
+                  <span class="badge badge-done">已复习</span>
+                </div>
+              </div>
+              <div class="item-actions">
+                <button class="btn btn-sm btn-icon" onclick="deleteItem('${item.id}')" title="删除">🗑️</button>
+              </div>
+            </div>`;
+        }).join('');
+      }
     }
     html += `</div>`;
   }
@@ -959,7 +1210,8 @@ function completeReview(id) {
   });
 
   item.currentRound++;
-  item.nextReviewDate = calculateNextReviewDate(item.createdAt, item.currentRound);
+  // Next review based on actual completion time (not createdAt), so late reviews shift the schedule
+  item.nextReviewDate = calculateNextReviewDate(now, item.currentRound);
 
   let msg;
   if (item.currentRound > INTERVALS.length) {
@@ -994,7 +1246,7 @@ function showItemDetail(id) {
   const interval = item.currentRound <= INTERVALS.length ? INTERVALS[item.currentRound - 1] : null;
   const roundLabel = interval ? `第${interval.round}轮 · ${interval.label}` : '全部完成';
   const status = getItemStatus(item);
-  const statusLabels = { overdue: '已逾期', today: '今日复习', upcoming: '即将到来', completed: '已完成' };
+  const statusLabels = { today: '待复习', upcoming: '即将到来', completed: '已完成' };
   const statusLabel = statusLabels[status] || '';
 
   const overlay = document.createElement('div');
@@ -1018,7 +1270,7 @@ function showItemDetail(id) {
         <textarea id="detail-content" style="width:100%;height:220px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:var(--font);resize:vertical;line-height:1.8;" placeholder="在这里粘贴或输入具体的背诵知识内容...">${escapeHtml(item.content || '')}</textarea>
         <div style="margin-top:12px;display:flex;gap:8px;">
           <button class="btn btn-primary" onclick="saveItemContent('${item.id}')">💾 保存</button>
-          ${status === 'overdue' || status === 'today' ? `<button class="btn btn-success" onclick="completeReview('${item.id}');closeDetailModal();">✅ 完成复习</button>` : ''}
+          ${status === 'today' ? `<button class="btn btn-success" onclick="completeReview('${item.id}');closeDetailModal();">✅ 完成复习</button>` : ''}
           <button class="btn btn-sm" onclick="closeDetailModal()" style="margin-left:auto;">关闭</button>
         </div>
       </div>
@@ -1204,10 +1456,291 @@ function showToast(message, type) {
   }, 3000);
 }
 
+// ============ 云同步（GitHub Gist）============
+const SYNC_KEY = 'ebbinghaus_sync';
+
+function getSyncConfig() {
+  try {
+    const raw = localStorage.getItem(SYNC_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveSyncConfig(config) {
+  localStorage.setItem(SYNC_KEY, JSON.stringify(config));
+}
+
+function isSyncConfigured() {
+  const cfg = getSyncConfig();
+  return cfg && cfg.token && cfg.gistId;
+}
+
+async function syncPush(silent) {
+  const cfg = getSyncConfig();
+  if (!cfg || !cfg.token || !cfg.gistId) return false;
+
+  try {
+    const data = loadData();
+    const resp = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${cfg.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        files: { 'ebbinghaus-data.json': { content: JSON.stringify(data) } }
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      if (!silent) showToast('同步失败：' + (err.message || resp.status), 'error');
+      return false;
+    }
+    if (!silent) showToast('☁️ 数据已同步', 'success');
+    updateSyncStatus();
+    return true;
+  } catch (e) {
+    if (!silent) showToast('同步失败：网络错误', 'error');
+    return false;
+  }
+}
+
+async function syncPull(silent) {
+  const cfg = getSyncConfig();
+  if (!cfg || !cfg.token || !cfg.gistId) return false;
+
+  try {
+    const resp = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      headers: {
+        'Authorization': `token ${cfg.token}`,
+        'Accept': 'application/vnd.github.v3+json',
+      }
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      if (!silent) showToast('拉取失败：' + (err.message || resp.status), 'error');
+      return false;
+    }
+
+    const gist = await resp.json();
+    const file = gist.files && gist.files['ebbinghaus-data.json'];
+    if (!file || !file.content) {
+      if (!silent) showToast('云端暂无数据', 'error');
+      return false;
+    }
+
+    const remoteData = JSON.parse(file.content);
+    if (!remoteData.items || !Array.isArray(remoteData.items)) {
+      if (!silent) showToast('云端数据格式错误', 'error');
+      return false;
+    }
+
+    // Merge: remote items take priority, but keep local items not in remote
+    const localData = loadData();
+    const remoteMap = new Map(remoteData.items.map(i => [i.id, i]));
+    const merged = { items: [] };
+
+    // Add all remote items
+    remoteData.items.forEach(item => merged.items.push(item));
+
+    // Add local items not in remote
+    localData.items.forEach(item => {
+      if (!remoteMap.has(item.id)) {
+        merged.items.push(item);
+      }
+    });
+
+    saveDataLocal(merged);
+    if (!silent) showToast(`☁️ 从云端拉取了 ${remoteData.items.length} 条记录`, 'success');
+    updateSyncStatus();
+    refresh();
+    return true;
+  } catch (e) {
+    if (!silent) showToast('拉取失败：网络错误', 'error');
+    return false;
+  }
+}
+
+function saveDataLocal(data) {
+  // Direct save without triggering sync push (to avoid loop)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// Override saveData to auto-push when sync is configured
+const originalSaveData = saveData;
+saveData = function(data) {
+  originalSaveData(data);
+  if (isSyncConfigured()) {
+    // Debounced push to avoid too many API calls
+    clearTimeout(window._syncPushTimer);
+    window._syncPushTimer = setTimeout(() => syncPush(true), 1500);
+  }
+};
+
+function updateSyncStatus() {
+  const btn = document.getElementById('btn-sync');
+  if (!btn) return;
+  if (isSyncConfigured()) {
+    btn.style.color = '#5b8c5a';
+    btn.title = '云同步已连接';
+  } else {
+    btn.style.color = '';
+    btn.title = '设置云同步';
+  }
+}
+
+async function showSyncModal() {
+  const cfg = getSyncConfig();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'sync-modal';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-header">
+        <h3>☁️ 云同步设置</h3>
+        <button class="btn btn-sm" onclick="closeSyncModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
+          通过 GitHub Gist 实现多设备数据同步。手机和电脑共用同一份数据。
+        </p>
+
+        <div style="margin-bottom:12px;">
+          <label style="font-size:13px;font-weight:600;">GitHub Token</label>
+          <p style="font-size:11px;color:var(--text-secondary);margin:4px 0;">
+            需要 <code>gist</code> 权限。
+            <a href="https://github.com/settings/tokens/new" target="_blank" style="color:var(--primary);">点此创建 token</a>，
+            Note 随便填，勾选 <strong>gist</strong>，生成后粘贴到下方。
+          </p>
+          <input type="password" id="sync-token" class="form-input"
+            placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+            value="${cfg ? cfg.token : ''}" style="margin-top:4px;">
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="font-size:13px;font-weight:600;">Gist ID</label>
+          <p style="font-size:11px;color:var(--text-secondary);margin:4px 0;">
+            留空则自动创建一个新的私有 Gist。
+          </p>
+          <input type="text" id="sync-gist-id" class="form-input"
+            placeholder="自动创建"
+            value="${cfg && cfg.gistId ? cfg.gistId : ''}" style="margin-top:4px;">
+        </div>
+
+        ${isSyncConfigured() ? `<p style="font-size:12px;color:#5b8c5a;margin-bottom:12px;">✅ 已连接</p>` : ''}
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="doSyncConnect()">🔗 ${isSyncConfigured() ? '重新连接' : '连接同步'}</button>
+          ${isSyncConfigured() ? `<button class="btn btn-sm" onclick="doSyncPull()">📥 从云端拉取</button>` : ''}
+          ${isSyncConfigured() ? `<button class="btn btn-sm" onclick="doSyncPush()">📤 推送到云端</button>` : ''}
+          ${isSyncConfigured() ? `<button class="btn btn-sm btn-danger" onclick="doSyncDisconnect()">断开</button>` : ''}
+          <button class="btn btn-sm" onclick="closeSyncModal()" style="margin-left:auto;">关闭</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeSyncModal(); });
+}
+
+function closeSyncModal() {
+  const modal = document.getElementById('sync-modal');
+  if (modal) modal.remove();
+}
+
+async function doSyncConnect() {
+  const token = document.getElementById('sync-token').value.trim();
+  let gistId = document.getElementById('sync-gist-id').value.trim();
+
+  if (!token) {
+    showToast('请输入 GitHub Token', 'error');
+    return;
+  }
+
+  // Validate token by fetching user info
+  try {
+    const resp = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': `token ${token}` }
+    });
+    if (!resp.ok) {
+      showToast('Token 无效，请检查', 'error');
+      return;
+    }
+  } catch (e) {
+    showToast('网络错误，无法验证 Token', 'error');
+    return;
+  }
+
+  // Create gist if no ID provided
+  if (!gistId) {
+    try {
+      const data = loadData();
+      const resp = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: {
+          'Authorization': `token ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: '艾宾浩斯复习提醒 - 数据同步',
+          public: false,
+          files: { 'ebbinghaus-data.json': { content: JSON.stringify(data) } }
+        })
+      });
+      if (!resp.ok) {
+        const err = await resp.json();
+        showToast('创建 Gist 失败：' + (err.message || resp.status), 'error');
+        return;
+      }
+      const gist = await resp.json();
+      gistId = gist.id;
+      document.getElementById('sync-gist-id').value = gistId;
+    } catch (e) {
+      showToast('创建 Gist 失败：网络错误', 'error');
+      return;
+    }
+  } else {
+    // Pull remote data first, then push local to sync
+    await syncPull(true);
+  }
+
+  saveSyncConfig({ token, gistId });
+  await syncPush(true);
+  updateSyncStatus();
+  showToast('☁️ 云同步已连接！数据会自动同步', 'success');
+  closeSyncModal();
+}
+
+async function doSyncPull() {
+  await syncPull(false);
+}
+
+async function doSyncPush() {
+  await syncPush(false);
+}
+
+function doSyncDisconnect() {
+  if (confirm('确定断开云同步吗？本地数据不会丢失。')) {
+    localStorage.removeItem(SYNC_KEY);
+    updateSyncStatus();
+    showToast('已断开云同步', 'error');
+    closeSyncModal();
+  }
+}
+
 // ============ 初始化 ============
-function init() {
+async function init() {
   // Set default date to today
   document.getElementById('input-date').value = new Date().toISOString().split('T')[0];
+
+  // Update sync status indicator
+  updateSyncStatus();
+
+  // Auto-pull from cloud on load if sync is configured
+  if (isSyncConfigured()) {
+    await syncPull(true);
+  }
 
   // Auto-refresh every 30 seconds
   renderStats();
